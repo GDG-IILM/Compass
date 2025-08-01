@@ -1,13 +1,15 @@
+// models/user_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
-  final String id;
+  final String uid; // Changed from 'id' to 'uid' to match Firebase Auth
   final String email;
-  final String firstName;
-  final String lastName;
+  final String name; // Combined name instead of firstName/lastName
   final String? profileImageUrl;
   final String? phoneNumber;
   final String? studentId;
-  final String? department;
-  final String? year;
+  final String branch; // Changed from 'department' to 'branch'
+  final int semester; // Changed from 'year' to 'semester'
   final String? section;
   final String? rollNumber;
   final DateTime createdAt;
@@ -23,15 +25,14 @@ class UserModel {
   final String? emergencyContact;
 
   UserModel({
-    required this.id,
+    required this.uid,
     required this.email,
-    required this.firstName,
-    required this.lastName,
+    required this.name,
     this.profileImageUrl,
     this.phoneNumber,
     this.studentId,
-    this.department,
-    this.year,
+    required this.branch,
+    required this.semester,
     this.section,
     this.rollNumber,
     required this.createdAt,
@@ -47,84 +48,165 @@ class UserModel {
     this.emergencyContact,
   });
 
-  String get fullName => '$firstName $lastName';
-  String get displayName => fullName;
-  String get initials => '${firstName[0]}${lastName[0]}'.toUpperCase();
+  // Getter for compatibility
+  String get id => uid;
+  String get fullName => name;
+  String get displayName => name;
+  String get initials => name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
-  // Factory constructor to create UserModel from JSON
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  // Factory constructor to create UserModel from Firestore document
+  factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
     return UserModel(
-      id: json['id'] ?? '',
-      email: json['email'] ?? '',
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
-      profileImageUrl: json['profileImageUrl'],
-      phoneNumber: json['phoneNumber'],
-      studentId: json['studentId'],
-      department: json['department'],
-      year: json['year'],
-      section: json['section'],
-      rollNumber: json['rollNumber'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
-      isEmailVerified: json['isEmailVerified'] ?? false,
-      isActive: json['isActive'] ?? true,
-      role: UserRole.values.firstWhere(
-            (role) => role.name == json['role'],
-        orElse: () => UserRole.student,
-      ),
-      preferences: json['preferences'],
-      interests: json['interests'] != null
-          ? List<String>.from(json['interests'])
+      uid: documentId,
+      email: map['email'] ?? '',
+      name: map['fullName'] ?? map['name'] ?? '', // Support both field names
+      profileImageUrl: map['profileImageUrl'],
+      phoneNumber: map['phoneNumber'],
+      studentId: map['studentId'],
+      branch: map['branch'] ?? map['department'] ?? 'Computer Science', // Support both
+      semester: map['semester'] ?? _parseYear(map['year']) ?? 1, // Convert year to semester
+      section: map['section'],
+      rollNumber: map['rollNumber'],
+      createdAt: _parseDateTime(map['createdAt']),
+      updatedAt: _parseDateTime(map['updatedAt']),
+      isEmailVerified: map['isEmailVerified'] ?? false,
+      isActive: map['isActive'] ?? true,
+      role: _parseUserRole(map['role']),
+      preferences: map['preferences'],
+      interests: map['interests'] != null
+          ? List<String>.from(map['interests'])
           : null,
-      bio: json['bio'],
-      dateOfBirth: json['dateOfBirth'] != null
-          ? DateTime.parse(json['dateOfBirth'])
+      bio: map['bio'],
+      dateOfBirth: map['dateOfBirth'] != null
+          ? _parseDateTime(map['dateOfBirth'])
           : null,
-      address: json['address'],
-      emergencyContact: json['emergencyContact'],
+      address: map['address'],
+      emergencyContact: map['emergencyContact'],
     );
   }
 
-  // Convert UserModel to JSON
-  Map<String, dynamic> toJson() {
+  // Factory constructor from JSON (for backward compatibility)
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel.fromMap(json, json['uid'] ?? json['id'] ?? '');
+  }
+
+  // Convert UserModel to Map for Firestore
+  Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'uid': uid,
       'email': email,
-      'firstName': firstName,
-      'lastName': lastName,
+      'fullName': name, // Store as fullName for consistency
+      'name': name, // Also store as name for compatibility
       'profileImageUrl': profileImageUrl,
       'phoneNumber': phoneNumber,
       'studentId': studentId,
-      'department': department,
-      'year': year,
+      'branch': branch,
+      'semester': semester,
       'section': section,
       'rollNumber': rollNumber,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
       'isEmailVerified': isEmailVerified,
       'isActive': isActive,
       'role': role.name,
       'preferences': preferences,
       'interests': interests,
       'bio': bio,
-      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'dateOfBirth': dateOfBirth != null
+          ? Timestamp.fromDate(dateOfBirth!)
+          : null,
       'address': address,
       'emergencyContact': emergencyContact,
     };
   }
 
+  // Convert UserModel to JSON (for backward compatibility)
+  Map<String, dynamic> toJson() {
+    final map = toMap();
+    // Convert Timestamps back to ISO strings for JSON
+    map['createdAt'] = createdAt.toIso8601String();
+    map['updatedAt'] = updatedAt.toIso8601String();
+    if (dateOfBirth != null) {
+      map['dateOfBirth'] = dateOfBirth!.toIso8601String();
+    }
+    return map;
+  }
+
+  // Helper method to parse DateTime from various formats
+  static DateTime _parseDateTime(dynamic dateTime) {
+    if (dateTime == null) return DateTime.now();
+
+    if (dateTime is Timestamp) {
+      return dateTime.toDate();
+    } else if (dateTime is DateTime) {
+      return dateTime;
+    } else if (dateTime is String) {
+      return DateTime.tryParse(dateTime) ?? DateTime.now();
+    } else {
+      return DateTime.now();
+    }
+  }
+
+  // Helper method to parse UserRole
+  static UserRole _parseUserRole(dynamic role) {
+    if (role == null) return UserRole.student;
+
+    if (role is UserRole) return role;
+
+    final roleString = role.toString().toLowerCase();
+    switch (roleString) {
+      case 'faculty':
+        return UserRole.faculty;
+      case 'admin':
+      case 'administrator':
+        return UserRole.admin;
+      case 'moderator':
+        return UserRole.moderator;
+      case 'student':
+      default:
+        return UserRole.student;
+    }
+  }
+
+  // Helper method to convert year string to semester number
+  static int _parseYear(dynamic year) {
+    if (year == null) return 1;
+
+    if (year is int) return year * 2 - 1; // Convert year to first semester
+
+    final yearString = year.toString().toLowerCase();
+    switch (yearString) {
+      case '1st':
+      case 'first':
+      case '1':
+        return 1;
+      case '2nd':
+      case 'second':
+      case '2':
+        return 3;
+      case '3rd':
+      case 'third':
+      case '3':
+        return 5;
+      case '4th':
+      case 'fourth':
+      case '4':
+        return 7;
+      default:
+        return 1;
+    }
+  }
+
   // Create a copy of UserModel with updated fields
   UserModel copyWith({
-    String? id,
+    String? uid,
     String? email,
-    String? firstName,
-    String? lastName,
+    String? name,
     String? profileImageUrl,
     String? phoneNumber,
     String? studentId,
-    String? department,
-    String? year,
+    String? branch,
+    int? semester,
     String? section,
     String? rollNumber,
     DateTime? createdAt,
@@ -140,15 +222,14 @@ class UserModel {
     String? emergencyContact,
   }) {
     return UserModel(
-      id: id ?? this.id,
+      uid: uid ?? this.uid,
       email: email ?? this.email,
-      firstName: firstName ?? this.firstName,
-      lastName: lastName ?? this.lastName,
+      name: name ?? this.name,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       studentId: studentId ?? this.studentId,
-      department: department ?? this.department,
-      year: year ?? this.year,
+      branch: branch ?? this.branch,
+      semester: semester ?? this.semester,
       section: section ?? this.section,
       rollNumber: rollNumber ?? this.rollNumber,
       createdAt: createdAt ?? this.createdAt,
@@ -165,18 +246,52 @@ class UserModel {
     );
   }
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is UserModel && other.id == id;
+  // Get formatted semester display
+  String get formattedSemester => 'Semester $semester';
+
+  // Get year from semester
+  int get year => ((semester - 1) ~/ 2) + 1;
+
+  // Get formatted year display
+  String get formattedYear => 'Year $year';
+
+  // Check if profile is complete
+  bool get isProfileComplete {
+    return name.isNotEmpty &&
+        email.isNotEmpty &&
+        branch.isNotEmpty &&
+        semester > 0;
+  }
+
+  // Get profile completion percentage
+  double get profileCompletionPercentage {
+    int completedFields = 0;
+    int totalFields = 8;
+
+    if (name.isNotEmpty) completedFields++;
+    if (email.isNotEmpty) completedFields++;
+    if (branch.isNotEmpty) completedFields++;
+    if (semester > 0) completedFields++;
+    if (phoneNumber?.isNotEmpty == true) completedFields++;
+    if (studentId?.isNotEmpty == true) completedFields++;
+    if (bio?.isNotEmpty == true) completedFields++;
+    if (profileImageUrl?.isNotEmpty == true) completedFields++;
+
+    return completedFields / totalFields;
   }
 
   @override
-  int get hashCode => id.hashCode;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is UserModel && other.uid == uid;
+  }
+
+  @override
+  int get hashCode => uid.hashCode;
 
   @override
   String toString() {
-    return 'UserModel(id: $id, email: $email, fullName: $fullName, role: $role)';
+    return 'UserModel(uid: $uid, email: $email, name: $name, branch: $branch, semester: $semester)';
   }
 }
 

@@ -115,27 +115,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHomeTab() {
-    final user = _authService.currentUser;
+    return FutureBuilder<UserModel?>(
+      future: _getCurrentUserModel(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(user),
-            const SizedBox(height: 24),
-            _buildQuickStats(),
-            const SizedBox(height: 24),
-            _buildQuickActions(),
-            const SizedBox(height: 24),
-            _buildRecentActivity(),
-            const SizedBox(height: 24),
-            _buildUpcomingEvents(),
-          ],
-        ),
-      ),
+        final user = snapshot.data;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(user),
+                const SizedBox(height: 24),
+                _buildQuickStats(),
+                const SizedBox(height: 24),
+                _buildQuickActions(),
+                const SizedBox(height: 24),
+                _buildRecentActivity(),
+                const SizedBox(height: 24),
+                _buildUpcomingEvents(),
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  // Helper method to get UserModel from Firebase User
+  Future<UserModel?> _getCurrentUserModel() async {
+    try {
+      final firebaseUser = _authService.currentUser;
+      if (firebaseUser == null) return null;
+
+      final userData = await _authService.getUserData();
+      if (userData == null) return null;
+
+      return UserModel.fromMap(userData, firebaseUser.uid);
+    } catch (e) {
+      print('Error loading user data: $e');
+      return null;
+    }
   }
 
   Widget _buildHeader(UserModel? user) {
@@ -179,17 +203,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  user?.firstName ?? 'Student',
+                  user?.displayName ?? 'Student',
                   style: const TextStyle(
                     color: AppColors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (user?.department != null && user?.year != null) ...[
+                if (user?.branch != null && user?.semester != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${user!.department} • ${user.year}',
+                    '${user!.branch} • ${user.formattedSemester}',
                     style: TextStyle(
                       color: AppColors.whiteWithOpacity(0.8),
                       fontSize: 14,

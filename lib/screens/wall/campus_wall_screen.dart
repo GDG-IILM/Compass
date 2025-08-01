@@ -1,4 +1,3 @@
-// TODO Implement this library.
 // screens/wall/campus_wall_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -149,7 +148,7 @@ class _CampusWallScreenState extends State<CampusWallScreen> {
 
   Widget _buildPostCard(PostModel post) {
     final currentUserId = _authService.currentUser?.uid;
-    final isLiked = post.likes.contains(currentUserId);
+    final isLiked = currentUserId != null ? post.isLikedBy(currentUserId) : false;
 
     return Card(
       margin: EdgeInsets.only(bottom: 16),
@@ -225,7 +224,7 @@ class _CampusWallScreenState extends State<CampusWallScreen> {
                 height: 1.4,
               ),
             ),
-            if (post.imageUrl != null) ...[
+            if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
               SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
@@ -271,7 +270,7 @@ class _CampusWallScreenState extends State<CampusWallScreen> {
                         ),
                         SizedBox(width: 4),
                         Text(
-                          '${post.likes.length}',
+                          '${post.likeCount}',
                           style: GoogleFonts.roboto(
                             color: isLiked ? AppColors.primary : AppColors.textSecondary,
                             fontSize: 14,
@@ -394,7 +393,7 @@ class _CampusWallScreenState extends State<CampusWallScreen> {
     try {
       final postRef = FirebaseFirestore.instance.collection('posts').doc(post.id);
 
-      if (post.likes.contains(user.uid)) {
+      if (post.isLikedBy(user.uid)) {
         // Unlike
         await postRef.update({
           'likes': FieldValue.arrayRemove([user.uid]),

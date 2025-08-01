@@ -1,474 +1,238 @@
-import 'dart:async';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import '../models/user_model.dart';
+// services/auth_service.dart
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AuthService extends ChangeNotifier {
-  static final AuthService _instance = AuthService._internal();
-  factory AuthService() => _instance;
-  AuthService._internal();
+class AuthService {
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  UserModel? _currentUser;
-  bool _isLoading = false;
-  String? _error;
-  Timer? _tokenRefreshTimer;
+  // Get current user
+  User? get currentUser => _firebaseAuth.currentUser;
 
-  // Getters
-  UserModel? get currentUser => _currentUser;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  bool get isAuthenticated => _currentUser != null;
-  bool get isLoggedIn => isAuthenticated;
+  // Auth state changes stream
+  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
-  // Authentication methods
-  Future<AuthResult> signUp({
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
-    String? phoneNumber,
-    String? studentId,
-    String? department,
-    String? year,
-  }) async {
-    _setLoading(true);
-    _clearError();
-
+  // Sign in with email and password
+  Future<UserCredential> signInWithEmailAndPassword(
+      String email,
+      String password,
+      ) async {
     try {
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 2));
+      UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return result;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('An unexpected error occurred: ${e.toString()}');
+    }
+  }
 
-      // Validate inputs
-      if (!_isValidEmail(email)) {
-        throw AuthException('Please enter a valid email address');
-      }
-
-      if (!_isValidPassword(password)) {
-        throw AuthException(
-            'Password must be at least 8 characters long and contain uppercase, lowercase, and numbers'
-        );
-      }
-
-      // Check if user already exists (simulate)
-      if (email.toLowerCase() == 'test@example.com') {
-        throw AuthException('An account with this email already exists');
-      }
-
-      // Create new user
-      final user = UserModel(
-        id: _generateUserId(),
-        email: email.toLowerCase(),
-        firstName: firstName,
-        lastName: lastName,
-        phoneNumber: phoneNumber,
-        studentId: studentId,
-        department: department,
-        year: year,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        isEmailVerified: false,
-        role: UserRole.student,
+  // Create user with email and password
+  Future<UserCredential> createUserWithEmailAndPassword(
+      String email,
+      String password,
+      String fullName,
+      String branch,
+      int semester,
+      ) async {
+    try {
+      UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
 
-      // Save user data (simulate)
-      await _saveUserToStorage(user);
+      // Create user document in Firestore
+      await _createUserDocument(
+        result.user!,
+        fullName,
+        branch,
+        semester,
+      );
 
-      _currentUser = user;
-      _startTokenRefreshTimer();
-      notifyListeners();
+      // Update display name
+      await result.user!.updateDisplayName(fullName);
 
-      return AuthResult.success('Account created successfully! Please verify your email.');
-
-    } on AuthException {
-      rethrow;
+      return result;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
     } catch (e) {
-      _setError('Failed to create account. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
+      throw Exception('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  Future<AuthResult> signIn({
-    required String email,
-    required String password,
-  }) async {
-    _setLoading(true);
-    _clearError();
-
+  // Create user document in Firestore
+  Future<void> _createUserDocument(
+      User user,
+      String fullName,
+      String branch,
+      int semester,
+      ) async {
     try {
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Validate inputs
-      if (!_isValidEmail(email)) {
-        throw AuthException('Please enter a valid email address');
-      }
-
-      if (password.isEmpty) {
-        throw AuthException('Please enter your password');
-      }
-
-      // Simulate authentication
-      UserModel? user = await _authenticateUser(email, password);
-
-      if (user == null) {
-        throw AuthException('Invalid email or password');
-      }
-
-      _currentUser = user;
-      _startTokenRefreshTimer();
-      notifyListeners();
-
-      return AuthResult.success('Welcome back, ${user.firstName}!');
-
-    } on AuthException {
-      rethrow;
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email,
+        'fullName': fullName,
+        'name': fullName, // Also store as 'name' for compatibility
+        'branch': branch,
+        'semester': semester,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'profileImageUrl': null,
+        'isActive': true,
+        'isEmailVerified': false,
+        'role': 'student',
+      });
     } catch (e) {
-      _setError('Failed to sign in. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
+      throw Exception('Failed to create user profile: ${e.toString()}');
     }
   }
 
+  // Sign out
   Future<void> signOut() async {
-    _setLoading(true);
-
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      _currentUser = null;
-      _tokenRefreshTimer?.cancel();
-      await _clearUserFromStorage();
-
-      notifyListeners();
+      await _firebaseAuth.signOut();
     } catch (e) {
-      _setError('Failed to sign out');
-    } finally {
-      _setLoading(false);
+      throw Exception('Failed to sign out: ${e.toString()}');
     }
   }
 
-  Future<AuthResult> resetPassword({required String email}) async {
-    _setLoading(true);
-    _clearError();
-
+  // Reset password
+  Future<void> resetPassword(String email) async {
     try {
-      if (!_isValidEmail(email)) {
-        throw AuthException('Please enter a valid email address');
-      }
-
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Simulate sending reset email
-      return AuthResult.success('Password reset email sent! Check your inbox.');
-
-    } on AuthException {
-      rethrow;
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
     } catch (e) {
-      _setError('Failed to send reset email. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
+      throw Exception('An unexpected error occurred: ${e.toString()}');
     }
   }
 
-  Future<AuthResult> changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      if (_currentUser == null) {
-        throw AuthException('You must be logged in to change password');
-      }
-
-      if (!_isValidPassword(newPassword)) {
-        throw AuthException(
-            'Password must be at least 8 characters long and contain uppercase, lowercase, and numbers'
-        );
-      }
-
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      return AuthResult.success('Password changed successfully!');
-
-    } on AuthException {
-      rethrow;
-    } catch (e) {
-      _setError('Failed to change password. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<AuthResult> verifyEmail({required String verificationCode}) async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      if (_currentUser == null) {
-        throw AuthException('No user logged in');
-      }
-
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Update user verification status
-      _currentUser = _currentUser!.copyWith(
-        isEmailVerified: true,
-        updatedAt: DateTime.now(),
-      );
-
-      await _saveUserToStorage(_currentUser!);
-      notifyListeners();
-
-      return AuthResult.success('Email verified successfully!');
-
-    } on AuthException {
-      rethrow;
-    } catch (e) {
-      _setError('Failed to verify email. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<AuthResult> updateProfile({
-    String? firstName,
-    String? lastName,
-    String? phoneNumber,
-    String? department,
-    String? year,
-    String? bio,
+  // Update user profile
+  Future<void> updateUserProfile({
+    String? fullName,
+    String? branch,
+    int? semester,
     String? profileImageUrl,
   }) async {
-    _setLoading(true);
-    _clearError();
-
     try {
-      if (_currentUser == null) {
-        throw AuthException('No user logged in');
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (fullName != null) {
+        updateData['fullName'] = fullName;
+        updateData['name'] = fullName; // Update both fields
+        await user.updateDisplayName(fullName);
       }
+      if (branch != null) updateData['branch'] = branch;
+      if (semester != null) updateData['semester'] = semester;
+      if (profileImageUrl != null) updateData['profileImageUrl'] = profileImageUrl;
 
-      // Simulate API delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      _currentUser = _currentUser!.copyWith(
-        firstName: firstName,
-        lastName: lastName,
-        phoneNumber: phoneNumber,
-        department: department,
-        year: year,
-        bio: bio,
-        profileImageUrl: profileImageUrl,
-        updatedAt: DateTime.now(),
-      );
-
-      await _saveUserToStorage(_currentUser!);
-      notifyListeners();
-
-      return AuthResult.success('Profile updated successfully!');
-
-    } on AuthException {
-      rethrow;
+      await _firestore.collection('users').doc(user.uid).update(updateData);
     } catch (e) {
-      _setError('Failed to update profile. Please try again.');
-      throw AuthException(_error!);
-    } finally {
-      _setLoading(false);
+      throw Exception('Failed to update profile: ${e.toString()}');
     }
   }
 
-  Future<void> initializeAuth() async {
-    _setLoading(true);
-
+  // Get user data
+  Future<Map<String, dynamic>?> getUserData() async {
     try {
-      // Try to load user from storage
-      _currentUser = await _loadUserFromStorage();
+      final user = currentUser;
+      if (user == null) return null;
 
-      if (_currentUser != null) {
-        _startTokenRefreshTimer();
-      }
+      DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
+      return doc.data() as Map<String, dynamic>?;
     } catch (e) {
-      debugPrint('Failed to initialize auth: $e');
-    } finally {
-      _setLoading(false);
-      notifyListeners();
+      throw Exception('Failed to get user data: ${e.toString()}');
     }
   }
 
-  // Private helper methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+  // Get user data stream
+  Stream<DocumentSnapshot> getUserDataStream() {
+    final user = currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    return _firestore.collection('users').doc(user.uid).snapshots();
   }
 
-  void _setError(String error) {
-    _error = error;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}').hasMatch(email);
-        }
-
-  bool _isValidPassword(String password) {
-    // At least 8 characters, contains uppercase, lowercase, and numbers
-    return password.length >= 8 &&
-        RegExp(r'[A-Z]').hasMatch(password) &&
-        RegExp(r'[a-z]').hasMatch(password) &&
-        RegExp(r'[0-9]').hasMatch(password);
-  }
-
-  String _generateUserId() {
-    return 'user_${DateTime.now().millisecondsSinceEpoch}';
-  }
-
-  Future<UserModel?> _authenticateUser(String email, String password) async {
-    // Simulate different users for testing
-    if (email.toLowerCase() == 'student@example.com' && password == 'Password123') {
-      return UserModel(
-        id: 'user_student_001',
-        email: email.toLowerCase(),
-        firstName: 'John',
-        lastName: 'Doe',
-        studentId: 'ST2024001',
-        department: 'Computer Science',
-        year: '3rd Year',
-        section: 'A',
-        createdAt: DateTime.now().subtract(const Duration(days: 365)),
-        updatedAt: DateTime.now(),
-        isEmailVerified: true,
-        role: UserRole.student,
-        bio: 'Computer Science student passionate about mobile development',
-        interests: ['Programming', 'Mobile Development', 'AI/ML'],
-      );
-    }
-
-    if (email.toLowerCase() == 'faculty@example.com' && password == 'Password123') {
-      return UserModel(
-        id: 'user_faculty_001',
-        email: email.toLowerCase(),
-        firstName: 'Dr. Sarah',
-        lastName: 'Johnson',
-        department: 'Computer Science',
-        createdAt: DateTime.now().subtract(const Duration(days: 1000)),
-        updatedAt: DateTime.now(),
-        isEmailVerified: true,
-        role: UserRole.faculty,
-        bio: 'Professor of Computer Science with expertise in Software Engineering',
-      );
-    }
-
-    if (email.toLowerCase() == 'admin@example.com' && password == 'Password123') {
-      return UserModel(
-        id: 'user_admin_001',
-        email: email.toLowerCase(),
-        firstName: 'Admin',
-        lastName: 'User',
-        createdAt: DateTime.now().subtract(const Duration(days: 500)),
-        updatedAt: DateTime.now(),
-        isEmailVerified: true,
-        role: UserRole.admin,
-      );
-    }
-
-    return null; // Invalid credentials
-  }
-
-  Future<void> _saveUserToStorage(UserModel user) async {
-    // In a real app, this would save to secure storage or SharedPreferences
-    // For now, we'll just simulate the operation
-    await Future.delayed(const Duration(milliseconds: 100));
-  }
-
-  Future<UserModel?> _loadUserFromStorage() async {
-    // In a real app, this would load from secure storage
-    // For demo purposes, return null (no stored user)
-    await Future.delayed(const Duration(milliseconds: 100));
-    return null;
-  }
-
-  Future<void> _clearUserFromStorage() async {
-    // In a real app, this would clear from secure storage
-    await Future.delayed(const Duration(milliseconds: 100));
-  }
-
-  void _startTokenRefreshTimer() {
-    _tokenRefreshTimer?.cancel();
-    // Refresh token every 55 minutes (assuming 1-hour expiry)
-    _tokenRefreshTimer = Timer.periodic(
-      const Duration(minutes: 55),
-          (timer) => _refreshToken(),
-    );
-  }
-
-  Future<void> _refreshToken() async {
+  // Delete user account
+  Future<void> deleteAccount() async {
     try {
-      // In a real app, this would refresh the authentication token
-      await Future.delayed(const Duration(milliseconds: 500));
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
 
-      if (_currentUser != null) {
-        _currentUser = _currentUser!.copyWith(updatedAt: DateTime.now());
-        notifyListeners();
-      }
+      // Delete user document from Firestore
+      await _firestore.collection('users').doc(user.uid).delete();
+
+      // Delete user account
+      await user.delete();
     } catch (e) {
-      debugPrint('Token refresh failed: $e');
-      // Optionally sign out user if token refresh fails
+      throw Exception('Failed to delete account: ${e.toString()}');
     }
   }
 
-  @override
-  void dispose() {
-    _tokenRefreshTimer?.cancel();
-    super.dispose();
-  }
-}
+  // Change password
+  Future<void> changePassword(String newPassword) async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
 
-// Result classes
-class AuthResult {
-  final bool isSuccess;
-  final String message;
-  final String? errorCode;
-
-  AuthResult._({
-    required this.isSuccess,
-    required this.message,
-    this.errorCode,
-  });
-
-  factory AuthResult.success(String message) {
-    return AuthResult._(isSuccess: true, message: message);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Failed to change password: ${e.toString()}');
+    }
   }
 
-  factory AuthResult.failure(String message, [String? errorCode]) {
-    return AuthResult._(
-      isSuccess: false,
-      message: message,
-      errorCode: errorCode,
-    );
+  // Re-authenticate user (required for sensitive operations)
+  Future<void> reauthenticateUser(String password) async {
+    try {
+      final user = currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Re-authentication failed: ${e.toString()}');
+    }
   }
-}
 
-class AuthException implements Exception {
-  final String message;
-  final String? errorCode;
-
-  AuthException(this.message, [this.errorCode]);
-
-  @override
-  String toString() => 'AuthException: $message';
+  // Handle Firebase Auth exceptions
+  String _handleAuthException(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No user found with this email address.';
+      case 'wrong-password':
+        return 'Wrong password provided.';
+      case 'email-already-in-use':
+        return 'An account already exists with this email address.';
+      case 'weak-password':
+        return 'The password provided is too weak.';
+      case 'invalid-email':
+        return 'The email address is not valid.';
+      case 'user-disabled':
+        return 'This user account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many requests. Please try again later.';
+      case 'operation-not-allowed':
+        return 'This operation is not allowed.';
+      case 'requires-recent-login':
+        return 'This operation requires recent authentication. Please log in again.';
+      default:
+        return 'Authentication failed: ${e.message ?? 'Unknown error'}';
+    }
+  }
 }

@@ -208,7 +208,7 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
                     Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
                     SizedBox(width: 8),
                     Text(
-                      '${event.date.day}/${event.date.month}/${event.date.year}',
+                      event.formattedDate,
                       style: GoogleFonts.roboto(
                         color: AppColors.primary,
                         fontSize: 14,
@@ -243,27 +243,28 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: event.tags.map((tag) {
-                    return Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        tag,
-                        style: GoogleFonts.roboto(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                if (event.tags.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: event.tags.map((tag) {
+                      return Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+                        child: Text(
+                          tag,
+                          style: GoogleFonts.roboto(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
               ],
             ),
           ),
@@ -333,7 +334,7 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          club.category,
+                          club.formattedCategory,
                           style: GoogleFonts.roboto(
                             color: AppColors.accent,
                             fontSize: 12,
@@ -347,7 +348,7 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
                 Column(
                   children: [
                     Text(
-                      '${club.members.length}',
+                      '${club.memberCount}',
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -380,19 +381,26 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.email, size: 16, color: AppColors.textSecondary),
-                    SizedBox(width: 8),
-                    Text(
-                      club.contactEmail,
-                      style: GoogleFonts.roboto(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
+                if (club.contactEmail.isNotEmpty)
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.email, size: 16, color: AppColors.textSecondary),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            club.contactEmail,
+                            style: GoogleFonts.roboto(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: () => _joinClub(club),
                   style: ElevatedButton.styleFrom(
@@ -450,5 +458,10 @@ class _EventsScreenState extends State<EventsScreen> with TickerProviderStateMix
       ),
     );
   }
-}
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+}

@@ -1,3 +1,4 @@
+// utils/colors.dart
 import 'package:flutter/material.dart';
 
 class AppColors {
@@ -21,16 +22,26 @@ class AppColors {
   static const Color veryLightGray = Color(0xFFF3F4F6);
   static const Color offWhite = Color(0xFFFAFAFA);
 
-  // Background Colors
+  // Background Colors (These were missing the commonly used names)
   static const Color backgroundColor = Color(0xFFF8FAFC);
+  static const Color background = Color(0xFFF8FAFC); // Added this alias
   static const Color surfaceColor = Color(0xFFFFFFFF);
+  static const Color surface = Color(0xFFFFFFFF); // Added this alias
   static const Color cardColor = Color(0xFFFFFFFF);
+
+  // Primary/Accent Colors (Added missing accent)
+  static const Color primary = primaryBlue; // Alias for primary
+  static const Color accent = primaryLightBlue; // Added accent color
 
   // Status Colors
   static const Color successGreen = Color(0xFF059669);
+  static const Color success = Color(0xFF059669); // Added this alias
   static const Color warningYellow = Color(0xFFF59E0B);
+  static const Color warning = warningYellow; // Alias
   static const Color errorRed = Color(0xFFDC2626);
+  static const Color error = errorRed; // Alias
   static const Color infoBlue = Color(0xFF2563EB);
+  static const Color info = infoBlue; // Alias
 
   // Text Colors
   static const Color textPrimary = Color(0xFF111827);
@@ -89,11 +100,13 @@ class AppColors {
   static Color whiteWithOpacity(double opacity) =>
       white.withOpacity(opacity);
 
-  static const Color primary = primaryBlue; // add this
+  // Additional commonly used opacity variants
+  static Color primaryWithOpacity(double opacity) =>
+      primary.withOpacity(opacity);
 
-  static const Color surface = surfaceColor;
-  static const Color accent = secondaryPurple; // or any color you want
-  static const Color success = secondaryLightGreen; // Add this line
+  static Color accentWithOpacity(double opacity) =>
+      accent.withOpacity(opacity);
 
-
+  static Color successWithOpacity(double opacity) =>
+      success.withOpacity(opacity);
 }

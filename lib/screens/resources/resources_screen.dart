@@ -373,6 +373,173 @@ class _ResourcesScreenState extends State<ResourcesScreen> with TickerProviderSt
     );
   }
 
+  Widget _buildBookCard(String title, String author, String url, String branch, int semester) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openUrl(url),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.menu_book,
+                  color: AppColors.warning,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'by $author',
+                      style: GoogleFonts.roboto(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            branch,
+                            style: GoogleFonts.roboto(
+                              color: AppColors.primary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Sem $semester',
+                            style: GoogleFonts.roboto(
+                              color: AppColors.success,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.open_in_new,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoCard(String title, String channel, String url, Duration duration) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openUrl(url),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: AppColors.error,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      channel,
+                      style: GoogleFonts.roboto(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${duration.inHours}h ${duration.inMinutes % 60}m',
+                      style: GoogleFonts.roboto(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.play_circle_outline,
+                color: AppColors.error,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildToolCard(String name, String description, String url, IconData icon, Color color) {
     return Card(
       margin: EdgeInsets.only(bottom: 12),
@@ -490,8 +657,9 @@ class _ResourcesScreenState extends State<ResourcesScreen> with TickerProviderSt
   }
 
   void _openUrl(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -500,6 +668,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> with TickerProviderSt
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 }
 
@@ -760,225 +934,3 @@ class _UploadResourceDialogState extends State<UploadResourceDialog> {
     super.dispose();
   }
 }
-
-// models/note_model.dart
-class NoteModel {
-  final String id;
-  final String title;
-  final String subject;
-  final String description;
-  final String fileUrl;
-  final String branch;
-  final int semester;
-  final String uploaderId;
-  final String uploaderName;
-  final DateTime createdAt;
-
-  NoteModel({
-    required this.id,
-    required this.title,
-    required this.subject,
-    required this.description,
-    required this.fileUrl,
-    required this.branch,
-    required this.semester,
-    required this.uploaderId,
-    required this.uploaderName,
-    required this.createdAt,
-  });
-
-  factory NoteModel.fromMap(Map<String, dynamic> map, String id) {
-    return NoteModel(
-      id: id,
-      title: map['title'] ?? '',
-      subject: map['subject'] ?? '',
-      description: map['description'] ?? '',
-      fileUrl: map['fileUrl'] ?? '',
-      branch: map['branch'] ?? '',
-      semester: map['semester'] ?? 1,
-      uploaderId: map['uploaderId'] ?? '',
-      uploaderName: map['uploaderName'] ?? '',
-      createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'subject': subject,
-      'description': description,
-      'fileUrl': fileUrl,
-      'branch': branch,
-      'semester': semester,
-      'uploaderId': uploaderId,
-      'uploaderName': uploaderName,
-      'createdAt': createdAt,
-    };
-  }
-});
-}
-
-Widget _buildBookCard(String title, String author, String url, String branch, int semester) {
-  return Card(
-    margin: EdgeInsets.only(bottom: 12),
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => _openUrl(url),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 70,
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.menu_book,
-                color: AppColors.warning,
-                size: 24,
-              ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'by $author',
-                    style: GoogleFonts.roboto(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          branch,
-                          style: GoogleFonts.roboto(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Sem $semester',
-                          style: GoogleFonts.roboto(
-                            color: AppColors.success,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.open_in_new,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _buildVideoCard(String title, String channel, String url, Duration duration) {
-  return Card(
-      margin: EdgeInsets.only(bottom: 12),
-  elevation: 2,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-  child: InkWell(
-  borderRadius: BorderRadius.circular(12),
-  onTap: () => _openUrl(url),
-  child: Padding(
-  padding: EdgeInsets.all(16),
-  child: Row(
-  children: [
-  Container(
-  width: 60,
-  height: 45,
-  decoration: BoxDecoration(
-  color: AppColors.error.withOpacity(0.1),
-  borderRadius: BorderRadius.circular(8),
-  ),
-  child: Icon(
-  Icons.play_arrow,
-  color: AppColors.error,
-  size: 24,
-  ),
-  ),
-  SizedBox(width: 16),
-  Expanded(
-  child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-  Text(
-  title,
-  style: GoogleFonts.poppins(
-  fontWeight: FontWeight.w600,
-  fontSize: 16,
-  color: AppColors.textPrimary,
-  ),
-  ),
-  SizedBox(height: 4),
-  Text(
-  channel,
-  style: GoogleFonts.roboto(
-  color: AppColors.textSecondary,
-  fontSize: 14,
-  ),
-  ),
-  SizedBox(height: 4),
-  Text(
-  '${duration.inHours}h ${duration.inMinutes % 60}m',
-  style: GoogleFonts.roboto(
-  color: AppColors.primary,
-  fontSize: 12,
-  fontWeight: FontWeight.w500,
-  ),
-  ),
-  ],
-  ),
-  ),
-  Icon(
-  Icons.play_circle_outline,
-  color: AppColors.error,
-  size: 24,
-  ),
-  ],
-  ),
-  ),
-  ),
