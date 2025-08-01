@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1099076222466:android:49be2981f31fd7e819311b",
+        "mobilesdk_app_id": "1:1099076222466:android:a6a35cee2655065419311b",
         "android_client_info": {
-          "package_name": "com.gdg.compass"
+          "package_name": "com.example.compass"
         }
       },
       "oauth_client": [],
