@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../resources/resources_screen.dart';
+import '../events/events_screen.dart';
+import '../wall/campus_wall_screen.dart';
+import '../profile/profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -17,9 +21,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final List<DashboardTab> _tabs = [
     DashboardTab(
-      title: 'Home',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home,
+      title: 'Dashboard',
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard,
     ),
     DashboardTab(
       title: 'Resources',
@@ -61,11 +65,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         },
         children: [
-          _buildHomeTab(),
-          _buildResourcesTab(),
-          _buildEventsTab(),
-          _buildWallTab(),
-          _buildProfileTab(),
+          _buildHomeTab(), // Dashboard content
+          ResourcesScreen(), // Your actual resources screen
+          EventsScreen(), // Your actual events screen
+          CampusWallScreen(), // Your actual campus wall screen
+          ProfileScreen(), // Your actual profile screen
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -337,7 +341,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icons.upload_outlined,
                 AppColors.resourcesColor,
                     () {
-                  // TODO: Navigate to note upload
+                  // Navigate to Resources tab
+                  setState(() {
+                    _currentIndex = 1;
+                  });
+                  _pageController.animateToPage(
+                    1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
                 },
               ),
             ),
@@ -349,7 +361,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icons.add_circle_outline,
                 AppColors.eventsColor,
                     () {
-                  // TODO: Navigate to events
+                  // Navigate to Events tab
+                  setState(() {
+                    _currentIndex = 2;
+                  });
+                  _pageController.animateToPage(
+                    2,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
                 },
               ),
             ),
@@ -423,7 +443,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             TextButton(
               onPressed: () {
-                // TODO: Navigate to full activity
+                // Navigate to Wall tab for full activity
+                setState(() {
+                  _currentIndex = 3;
+                });
+                _pageController.animateToPage(
+                  3,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               },
               child: const Text(
                 'View All',
@@ -666,30 +694,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildResourcesTab() {
-    return const Center(
-      child: Text('Resources Tab - Coming Soon'),
-    );
-  }
-
-  Widget _buildEventsTab() {
-    return const Center(
-      child: Text('Events Tab - Coming Soon'),
-    );
-  }
-
-  Widget _buildWallTab() {
-    return const Center(
-      child: Text('Wall Tab - Coming Soon'),
-    );
-  }
-
-  Widget _buildProfileTab() {
-    return const Center(
-      child: Text('Profile Tab - Coming Soon'),
     );
   }
 }

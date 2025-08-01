@@ -1,10 +1,9 @@
 // main.dart
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/home/home_screen.dart';
-import 'services/auth_service.dart';
+import 'screens/home/splash_screen.dart';
 import 'utils/colors.dart';
 
 void main() async {
@@ -62,48 +61,8 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: AuthWrapper(),
+      home: SplashScreen(), // Start with splash screen
       debugShowCheckedModeBanner: false,
     );
   }
 }
-
-class AuthWrapper extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: AuthService().authStateChanges,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            ),
-          );
-        }
-
-        if (snapshot.hasData) {
-          return HomeScreen();
-        } else {
-          return LoginScreen();
-        }
-      },
-    );
-  }
-}
-
-// utils/colors.dart
-class AppColors {
-  static const Color primary = Color(0xFF2196F3);
-  static const Color accent = Color(0xFF03DAC6);
-  static const Color background = Color(0xFFF5F5F5);
-  static const Color surface = Colors.white;
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
-  static const Color error = Color(0xFFB00020);
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = Color(0xFFFF9800);
-}
-
