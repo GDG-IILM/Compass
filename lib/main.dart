@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: AppColors.backgroundColor, // Fixed property name
+        scaffoldBackgroundColor: AppColors.backgroundColor,
         textTheme: GoogleFonts.robotoTextTheme(
           Theme.of(context).textTheme,
         ).copyWith(
@@ -78,26 +78,54 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   final AuthService _authService = AuthService();
+  bool _isLoading = true;
+  bool _splashCompleted = false;
+  User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Start the splash timer
+    final splashTimer = Future.delayed(Duration(milliseconds: 1500));
+
+    // Listen to auth state changes
+    _authService.authStateChanges.listen((User? user) {
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+        });
+      }
+    });
+
+    // Wait for minimum splash duration
+    await splashTimer;
+
+    if (mounted) {
+      setState(() {
+        _splashCompleted = true;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: _authService.authStateChanges,
-      builder: (context, snapshot) {
-        // Show loading while waiting for auth state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SplashScreen(); // Make sure this screen exists
-        }
+    // Show splash screen during loading or until splash is completed
+    if (_isLoading || !_splashCompleted) {
+      return SplashScreen();
+    }
 
-        // Check if user is logged in
-        if (snapshot.hasData && snapshot.data != null) {
-          print('User authenticated: ${snapshot.data!.uid}'); // Debug log
-          return DashboardScreen();
-        } else {
-          print('User not authenticated, showing login'); // Debug log
-          return LoginScreen();
-        }
-      },
-    );
+    // After splash is completed, show appropriate screen based on auth state
+    if (_currentUser != null) {
+      print('User authenticated: ${_currentUser!.uid}');
+      return DashboardScreen();
+    } else {
+      print('User not authenticated, showing login');
+      return LoginScreen();
+    }
   }
 }
