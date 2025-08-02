@@ -44,6 +44,9 @@ class AuthService {
         password: password,
       );
 
+      // Update display name first
+      await result.user!.updateDisplayName(fullName);
+
       // Create user document in Firestore
       await _createUserDocument(
         result.user!,
@@ -51,9 +54,6 @@ class AuthService {
         branch,
         semester,
       );
-
-      // Update display name
-      await result.user!.updateDisplayName(fullName);
 
       return result;
     } on FirebaseAuthException catch (e) {
@@ -71,9 +71,9 @@ class AuthService {
       int semester,
       ) async {
     try {
-      await _firestore.collection('users').doc(user.uid).set({
+      final userData = <String, dynamic>{
         'uid': user.uid,
-        'email': user.email,
+        'email': user.email ?? '',
         'fullName': fullName,
         'name': fullName, // Also store as 'name' for compatibility
         'branch': branch,
@@ -82,9 +82,11 @@ class AuthService {
         'updatedAt': FieldValue.serverTimestamp(),
         'profileImageUrl': null,
         'isActive': true,
-        'isEmailVerified': false,
+        'isEmailVerified': user.emailVerified,
         'role': 'student',
-      });
+      };
+
+      await _firestore.collection('users').doc(user.uid).set(userData);
     } catch (e) {
       throw Exception('Failed to create user profile: ${e.toString()}');
     }
@@ -121,7 +123,7 @@ class AuthService {
       final user = currentUser;
       if (user == null) throw Exception('No user logged in');
 
-      Map<String, dynamic> updateData = {
+      final updateData = <String, dynamic>{
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -147,7 +149,14 @@ class AuthService {
       if (user == null) return null;
 
       DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
-      return doc.data() as Map<String, dynamic>?;
+
+      if (doc.exists) {
+        final data = doc.data();
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+      return null;
     } catch (e) {
       throw Exception('Failed to get user data: ${e.toString()}');
     }
@@ -197,6 +206,10 @@ class AuthService {
       final user = currentUser;
       if (user == null) throw Exception('No user logged in');
 
+      if (user.email == null) {
+        throw Exception('User email not available for re-authentication');
+      }
+
       AuthCredential credential = EmailAuthProvider.credential(
         email: user.email!,
         password: password,
@@ -231,6 +244,10 @@ class AuthService {
         return 'This operation is not allowed.';
       case 'requires-recent-login':
         return 'This operation requires recent authentication. Please log in again.';
+      case 'invalid-credential':
+        return 'The provided credentials are invalid.';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
       default:
         return 'Authentication failed: ${e.message ?? 'Unknown error'}';
     }
