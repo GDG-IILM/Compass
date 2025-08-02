@@ -1,10 +1,13 @@
 // main.dart
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/home/splash_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
 import 'utils/colors.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: AppColors.background,
+        scaffoldBackgroundColor: AppColors.backgroundColor, // Fixed property name
         textTheme: GoogleFonts.robotoTextTheme(
           Theme.of(context).textTheme,
         ).copyWith(
@@ -61,8 +64,40 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: SplashScreen(), // Start with splash screen
+      home: AuthWrapper(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+// Auth wrapper to handle authentication state
+class AuthWrapper extends StatefulWidget {
+  @override
+  _AuthWrapperState createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  final AuthService _authService = AuthService();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: _authService.authStateChanges,
+      builder: (context, snapshot) {
+        // Show loading while waiting for auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SplashScreen(); // Make sure this screen exists
+        }
+
+        // Check if user is logged in
+        if (snapshot.hasData && snapshot.data != null) {
+          print('User authenticated: ${snapshot.data!.uid}'); // Debug log
+          return DashboardScreen();
+        } else {
+          print('User not authenticated, showing login'); // Debug log
+          return LoginScreen();
+        }
+      },
     );
   }
 }
