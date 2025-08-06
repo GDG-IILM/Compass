@@ -2,12 +2,11 @@
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../resources/resources_screen.dart';
+import '../chatbot/chatbot_screen.dart'; // Add this import
 import '../events/events_screen.dart';
 import '../wall/campus_wall_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../models/event_model.dart';
-
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -19,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     DashboardScreen(),
-    ResourcesScreen(),
+    ChatBotScreen(), // Replaced ResourcesScreen with ChatBotScreen
     EventsScreen(),
     CampusWallScreen(),
     ProfileScreen(),
@@ -48,9 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.book_outlined),
-            activeIcon: Icon(Icons.book),
-            label: 'Resources',
+            icon: Icon(Icons.smart_toy_outlined), // ChatBot icon
+            activeIcon: Icon(Icons.smart_toy),
+            label: 'Sophia',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.event_outlined),
@@ -78,4 +77,3 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 }
-

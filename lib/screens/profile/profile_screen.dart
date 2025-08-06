@@ -1,4 +1,5 @@
 // screens/profile/profile_screen.dart
+import 'package:compass/screens/about/about_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -427,33 +428,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showAbout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('About Fresher\'s Compass'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Version: 1.0.0'),
-            SizedBox(height: 8),
-            Text('Developed by: GDSC Team'),
-            SizedBox(height: 8),
-            Text('© 2024 Fresher\'s Compass'),
-            SizedBox(height: 16),
-            Text(
-              'Your complete guide to college life. Connect, learn, and grow with your peers.',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AboutScreen()),
     );
   }
 
@@ -887,7 +864,7 @@ class MyResourcesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'No resources uploaded yet',
+                    'No chatbot uploaded yet',
                     style: GoogleFonts.roboto(
                       fontSize: 16,
                       color: AppColors.textSecondary,

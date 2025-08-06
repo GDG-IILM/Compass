@@ -26,6 +26,7 @@ dependencies:
 
   # Utilities
   url_launcher: ^6.2.2
+  webview_flutter: ^4.4.2
 
   cupertino_icons: ^1.0.2
 
@@ -43,6 +44,8 @@ flutter:
   assets:
     - assets/app_icon_v2.png
     - assets/SplashScreen.png
+    - assets/pfp/kushal.png
+    - assets/pfp/piyush.png
 
 flutter_launcher_icons:
   android: true

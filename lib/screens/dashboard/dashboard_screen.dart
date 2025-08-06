@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
-import '../resources/resources_screen.dart';
+import '../chatbot/chatbot_screen.dart';
 import '../events/events_screen.dart';
 import '../wall/campus_wall_screen.dart';
 import '../profile/profile_screen.dart';
@@ -26,9 +26,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       activeIcon: Icons.dashboard,
     ),
     DashboardTab(
-      title: 'Resources',
-      icon: Icons.library_books_outlined,
-      activeIcon: Icons.library_books,
+      title: 'Sophia',
+      icon: Icons.smart_toy_outlined,
+      activeIcon: Icons.smart_toy,
     ),
     DashboardTab(
       title: 'Events',
@@ -66,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         children: [
           _buildHomeTab(), // Dashboard content
-          ResourcesScreen(), // Your actual resources screen
+          ChatBotScreen(), // Your actual resources screen
           EventsScreen(), // Your actual events screen
           CampusWallScreen(), // Your actual campus wall screen
           ProfileScreen(), // Your actual profile screen
