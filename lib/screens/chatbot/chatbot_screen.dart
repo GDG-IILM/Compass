@@ -17,7 +17,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadRequest(
-        Uri.parse('https://uniconnect-rltc.onrender.com/'),
+        Uri.parse('https://compass-sarvam-chatbot.onrender.com/'),
       );
   }
 
@@ -44,7 +44,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
                   Text(
-                    "Ask Sophia 🤖",
+                    "Ask Sakhi 🤖",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

@@ -1,4 +1,4 @@
-// lib/screens/home/splash_screen.dart
+// lib/screens/splash/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../dashboard/dashboard_screen.dart';

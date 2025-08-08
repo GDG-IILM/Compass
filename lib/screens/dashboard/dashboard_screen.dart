@@ -6,6 +6,7 @@ import '../chatbot/chatbot_screen.dart';
 import '../events/events_screen.dart';
 import '../wall/campus_wall_screen.dart';
 import '../profile/profile_screen.dart';
+import '../nominations/nomination_page.dart'; // Uncomment and adjust path as needed
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -26,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       activeIcon: Icons.dashboard,
     ),
     DashboardTab(
-      title: 'Sophia',
+      title: 'Sakhi',
       icon: Icons.smart_toy_outlined,
       activeIcon: Icons.smart_toy,
     ),
@@ -94,11 +95,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           setState(() {
             _currentIndex = index;
           });
-          _pageController.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
+          // Jump directly to the page without animation
+          _pageController.jumpToPage(index);
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.white,
@@ -135,11 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 _buildHeader(user),
                 const SizedBox(height: 24),
-                _buildQuickStats(),
-                const SizedBox(height: 24),
                 _buildQuickActions(),
-                const SizedBox(height: 24),
-                _buildRecentActivity(),
                 const SizedBox(height: 24),
                 _buildUpcomingEvents(),
               ],
@@ -242,83 +236,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickStats() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Notes Shared',
-            '12',
-            Icons.note_outlined,
-            AppColors.resourcesColor,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Events Joined',
-            '5',
-            Icons.event_outlined,
-            AppColors.eventsColor,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Posts Made',
-            '8',
-            Icons.forum_outlined,
-            AppColors.wallColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 28,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildQuickActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,48 +249,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                'Share Notes',
-                'Upload and share your study materials',
-                Icons.upload_outlined,
-                AppColors.resourcesColor,
-                    () {
-                  // Navigate to Resources tab
-                  setState(() {
-                    _currentIndex = 1;
-                  });
-                  _pageController.animateToPage(
-                    1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                'Join Event',
-                'Find and join campus events',
-                Icons.add_circle_outline,
-                AppColors.eventsColor,
-                    () {
-                  // Navigate to Events tab
-                  setState(() {
-                    _currentIndex = 2;
-                  });
-                  _pageController.animateToPage(
-                    2,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
-              ),
-            ),
-          ],
+        // Single action card for Join Event
+        _buildActionCard(
+          'Join Event',
+          'Find and join campus events',
+          Icons.add_circle_outline,
+          AppColors.eventsColor,
+              () {
+            // Navigate to Events tab
+            setState(() {
+              _currentIndex = 2;
+            });
+            _pageController.animateToPage(
+              2,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        // GDG Application card
+        _buildActionCard(
+          'Apply for GDG!',
+          'Nominations are live',
+          Icons.group_add_outlined,
+          AppColors.primaryBlue,
+              () {
+
+            Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => NominationPage()),
+            );
+          },
         ),
       ],
     );
@@ -389,167 +296,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderLight),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Icon(
               icon,
               color: color,
               size: 32,
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: AppColors.mediumGray,
+              size: 16,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Recent Activity',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                // Navigate to Wall tab for full activity
-                setState(() {
-                  _currentIndex = 3;
-                });
-                _pageController.animateToPage(
-                  3,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildActivityItem(
-          'Sarah Johnson liked your note',
-          'Data Structures - Linked Lists',
-          '2 hours ago',
-          Icons.favorite,
-          AppColors.errorRed,
-        ),
-        _buildActivityItem(
-          'New event posted',
-          'Programming Contest 2024',
-          '4 hours ago',
-          Icons.event,
-          AppColors.eventsColor,
-        ),
-        _buildActivityItem(
-          'John Doe commented on your post',
-          'Campus Wall Discussion',
-          '1 day ago',
-          Icons.comment,
-          AppColors.wallColor,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActivityItem(
-      String title,
-      String subtitle,
-      String time,
-      IconData icon,
-      Color color,
-      ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            time,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
       ),
     );
   }
