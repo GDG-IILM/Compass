@@ -6,7 +6,8 @@ import '../chatbot/chatbot_screen.dart';
 import '../events/events_screen.dart';
 import '../wall/campus_wall_screen.dart';
 import '../profile/profile_screen.dart';
-import '../nominations/nomination_page.dart'; // Uncomment and adjust path as needed
+// Add this import for the nomination page
+// import '../nominations/nomination_page.dart'; // Uncomment and adjust path as needed
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -67,7 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         children: [
           _buildHomeTab(), // Dashboard content
-          ChatBotScreen(), // Your actual resources screen
+          const ChatBotScreen(), // Updated chatbot screen
           EventsScreen(), // Your actual events screen
           CampusWallScreen(), // Your actual campus wall screen
           ProfileScreen(), // Your actual profile screen
@@ -275,10 +276,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Icons.group_add_outlined,
           AppColors.primaryBlue,
               () {
+            // Navigate to nomination page
+            // Navigator.push(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => NominationPage()),
+            // );
 
-            Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => NominationPage()),
+            // Temporary placeholder - replace with actual navigation
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Navigate to Nomination Page'),
+              ),
             );
           },
         ),
