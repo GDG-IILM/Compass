@@ -27,7 +27,7 @@ class DashboardScreen extends StatelessWidget {
           onApplyGDG: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const NominationPage()),
+              MaterialPageRoute(builder: (_) => NominationScreen()),
             );
           },
         ),

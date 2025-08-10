@@ -1,663 +1,286 @@
+import 'package:compass/screens/dashboard/dashboard_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../utils/colors.dart'; // Adjust path as needed
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../utils/colors.dart';
 
-class NominationPage extends StatefulWidget {
-  const NominationPage({Key? key}) : super(key: key);
-
+class NominationScreen extends StatefulWidget {
   @override
-  State<NominationPage> createState() => _NominationPageState();
+  _NominationScreenState createState() => _NominationScreenState();
 }
 
-class _NominationPageState extends State<NominationPage> {
+class _NominationScreenState extends State<NominationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _courseController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _instagramController = TextEditingController();
-  final _githubController = TextEditingController();
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _courseController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _instagramController = TextEditingController();
+  final TextEditingController _githubController = TextEditingController();
 
   String? _selectedGender;
   String? _selectedDomain;
-
-  final List<String> _genderOptions = ['Male', 'Female', 'Others'];
-  final List<String> _domainOptions = [
-    'UI/UX',
-    'App Development',
-    'Web Development',
-    'CyberSecurity',
-    'Social Media Management',
-    'Sponsorship & Marketing',
-  ];
-
   bool _isSubmitting = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _courseController.dispose();
-    _emailController.dispose();
-    _instagramController.dispose();
-    _githubController.dispose();
-    super.dispose();
+  final List<String> genderOptions = ["Male", "Female", "Others"];
+  final List<String> domainOptions = [
+    "UI/UX",
+    "App Dev",
+    "Web Dev",
+    "Cybersecurity Team",
+    "Social Media Team",
+    "Sponsorship & Marketing"
+  ];
+
+  Future<void> _submitNomination() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://compass-backend-production-e15e.up.railway.app/api/nominations'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": _nameController.text.trim(),
+          "course": _courseController.text.trim(),
+          "gender": _selectedGender ?? '',
+          "email": _emailController.text.trim(),
+          "phone_no": _phoneController.text.trim(),
+          "insta_id": _instagramController.text.trim(),
+          "github_id": _githubController.text.trim(),
+          "domain": _selectedDomain ?? ''
+        }),
+      );
+
+      final resData = jsonDecode(response.body);
+      print(response);
+      print(resData);
+
+      if (resData['success'] == true || resData['success'] == 'true' || resData['success'] == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resData['message'] ?? "Nomination submitted successfully!"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        ).closed.then((_) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => DashboardScreen()),
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resData['message'] ?? "Submission failed"),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Network error: $e"),
+          backgroundColor: AppColors.errorRed,
+        ),
+      );
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
+  }
+
+
+
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: AppColors.textSecondary),
+      prefixIcon: Icon(icon, color: AppColors.textSecondary),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.primaryBlue),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecorationWithImage(String hint, String assetPath) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: AppColors.textSecondary),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Image.asset(assetPath, width: 24, height: 24),
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.primaryBlue),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildForm(),
-          ],
-        ),
-      ),
-    );
-  }
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Blue Card
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primaryBlue, AppColors.primaryBlue.withOpacity(0.85)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.group, size: 48, color: Colors.white),
+                      SizedBox(height: 8),
+                      Text(
+                        "GDG Nomination",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "Join our community of developers and innovators!",
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      automaticallyImplyLeading: false,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 16),
-        child: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadowLight,
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                SizedBox(height: 20),
+                Text("Personal Information", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: _inputDecoration("Enter your full name", Icons.person_outline),
+                  validator: (v) => v!.isEmpty ? "Please enter your name" : null,
+                ),
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _courseController,
+                  decoration: _inputDecoration("e.g., B.Tech Computer Science", Icons.school_outlined),
+                  validator: (v) => v!.isEmpty ? "Please enter your course" : null,
+                ),
+                SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: _inputDecoration("Select your gender", Icons.person_outline),
+                  value: _selectedGender,
+                  items: genderOptions.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                  onChanged: (value) => setState(() => _selectedGender = value),
+                  validator: (v) => v == null ? "Please select your gender" : null,
+                ),
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: _inputDecoration("your.email@example.com", Icons.email_outlined),
+                  validator: (v) => v!.isEmpty ? "Please enter an email" : null,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: _inputDecoration("Enter 10 digit phone number", Icons.phone_outlined),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return "Please enter a phone number";
+                    if (!RegExp(r'^\d{10}$').hasMatch(v)) return "Phone number must be 10 digits";
+                    return null;
+                  },
+                  keyboardType: TextInputType.phone,
+                ),
+
+                SizedBox(height: 20),
+                Text("Social & Professional Links", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _instagramController,
+                  decoration: _inputDecorationWithImage(
+                    "@Instagram_ID",
+                    "assets/icons/ig.png",
+                  ),
+                ),
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _githubController,
+                  decoration: _inputDecorationWithImage(
+                    "https://github.com/username",
+                    "assets/icons/github.png",
+                  ),
+                ),
+                SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: _inputDecoration("Select your preferred domain", Icons.work_outline),
+                  value: _selectedDomain,
+                  items: domainOptions.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  onChanged: (value) => setState(() => _selectedDomain = value),
+                  validator: (v) => v == null ? "Please select a domain" : null,
+                ),
+
+                SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.send, color: Colors.white),
+                    label: _isSubmitting
+                        ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                        : Text(
+                      "Submit Nomination",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isSubmitting ? null : _submitNomination,
+                  ),
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              color: AppColors.textPrimary,
-              size: 18,
-            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.whiteWithOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.groups,
-              color: AppColors.white,
-              size: 40,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'GDG Nomination',
-            style: TextStyle(
-              color: AppColors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Join our community of developers and innovators!',
-            style: TextStyle(
-              color: AppColors.whiteWithOpacity(0.9),
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildForm() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Personal Information',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            _buildTextFormField(
-              controller: _nameController,
-              label: 'Full Name',
-              hint: 'Enter your full name',
-              icon: Icons.person_outline,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your full name';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildTextFormField(
-              controller: _courseController,
-              label: 'Course',
-              hint: 'e.g., B.Tech Computer Science',
-              icon: Icons.school_outlined,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your course';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildDropdownField(
-              label: 'Gender',
-              value: _selectedGender,
-              hint: 'Select your gender',
-              icon: Icons.person_outline,
-              items: _genderOptions,
-              onChanged: (value) {
-                setState(() {
-                  _selectedGender = value;
-                });
-              },
-              validator: (value) {
-                if (value == null) {
-                  return 'Please select your gender';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildTextFormField(
-              controller: _emailController,
-              label: 'Email Address',
-              hint: 'your.email@example.com',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your email address';
-                }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                    .hasMatch(value)) {
-                  return 'Please enter a valid email address';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 32),
-
-            const Text(
-              'Social & Professional Links',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            _buildTextFormField(
-              controller: _instagramController,
-              label: 'Instagram Profile',
-              hint: 'https://instagram.com/username',
-              icon: Icons.camera_alt_outlined,
-              customIcon: _buildInstagramIcon(),
-              keyboardType: TextInputType.url,
-              validator: (value) {
-                if (value != null &&
-                    value.isNotEmpty &&
-                    !value.contains('instagram.com')) {
-                  return 'Please enter a valid Instagram URL';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildTextFormField(
-              controller: _githubController,
-              label: 'GitHub Profile',
-              hint: 'https://github.com/username',
-              icon: Icons.code_outlined,
-              customIcon: _buildGithubIcon(),
-              keyboardType: TextInputType.url,
-              validator: (value) {
-                if (value != null &&
-                    value.isNotEmpty &&
-                    !value.contains('github.com')) {
-                  return 'Please enter a valid GitHub URL';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildDropdownField(
-              label: 'Domain',
-              value: _selectedDomain,
-              hint: 'Select your preferred domain',
-              icon: Icons.work_outline,
-              items: _domainOptions,
-              onChanged: (value) {
-                setState(() {
-                  _selectedDomain = value;
-                });
-              },
-              validator: (value) {
-                if (value == null) {
-                  return 'Please select your domain';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 40),
-
-            _buildSubmitButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    Widget? customIcon,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 16,
-              ),
-              prefixIcon: customIcon ??
-                  Icon(
-                    icon,
-                    color: AppColors.primaryBlue,
-                    size: 22,
-                  ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required String hint,
-    required IconData icon,
-    required List<String> items,
-    required void Function(String?) onChanged,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: value,
-            validator: validator,
-            onChanged: onChanged,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 16,
-              ),
-              prefixIcon: Icon(
-                icon,
-                color: AppColors.primaryBlue,
-                size: 22,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-            dropdownColor: AppColors.white,
-            items: items.map((String item) {
-              return DropdownMenuItem<String>(
-                value: item,
-                child: Text(
-                  item,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _handleSubmit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBlue,
-          foregroundColor: AppColors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          disabledBackgroundColor: AppColors.lightGray,
-        ),
-        child: _isSubmitting
-            ? const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor:
-            AlwaysStoppedAnimation<Color>(AppColors.white),
-          ),
-        )
-            : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.send_outlined, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Submit Nomination',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleSubmit() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSubmitting = true;
-      });
-
-      HapticFeedback.lightImpact();
-
-      try {
-        String safeEmail =
-        _emailController.text.trim().replaceAll('.', '_');
-
-        await FirebaseFirestore.instance
-            .collection('nomination')
-            .doc(safeEmail)
-            .set({
-          'name': _nameController.text.trim(),
-          'course': _courseController.text.trim(),
-          'gender': _selectedGender,
-          'email': _emailController.text.trim(),
-          'instagram': _instagramController.text.trim(),
-          'github': _githubController.text.trim(),
-          'domain': _selectedDomain,
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: const [
-                  Icon(Icons.check_circle, color: AppColors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Nomination submitted successfully!',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.successGreen,
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: const [
-                  Icon(Icons.error, color: AppColors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Error submitting nomination. Try again!',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.errorRed,
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        }
-      }
-
-      setState(() {
-        _isSubmitting = false;
-      });
-
-      _printFormData();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.error, color: AppColors.white),
-              SizedBox(width: 8),
-              Text(
-                'Please fill all required fields correctly',
-                style: TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.errorRed,
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    }
-  }
-
-  void _printFormData() {
-    print('=== GDG Nomination Form Data ===');
-    print('Name: ${_nameController.text}');
-    print('Course: ${_courseController.text}');
-    print('Gender: $_selectedGender');
-    print('Email: ${_emailController.text}');
-    print('Instagram: ${_instagramController.text}');
-    print('GitHub: ${_githubController.text}');
-    print('Domain: $_selectedDomain');
-    print('================================');
-  }
-
-  Widget _buildInstagramIcon() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        width: 22,
-        height: 22,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              Color(0xFFF58529),
-              Color(0xFFDD2A7B),
-              Color(0xFF8134AF),
-              Color(0xFF515BD4),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: const Icon(
-          Icons.camera_alt_outlined,
-          color: Colors.white,
-          size: 14,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGithubIcon() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        width: 22,
-        height: 22,
-        decoration: BoxDecoration(
-          color: const Color(0xFF24292E),
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: const Icon(
-          Icons.code,
-          color: Colors.white,
-          size: 14,
         ),
       ),
     );
