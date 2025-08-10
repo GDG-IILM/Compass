@@ -1,84 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/colors.dart';
 import '../../services/auth_service.dart';
-import '../../models/user_model.dart';
 import '../chatbot/chatbot_screen.dart';
 import '../events/events_screen.dart';
 import '../wall/campus_wall_screen.dart';
 import '../profile/profile_screen.dart';
-// Add this import for the nomination page
-// import '../nominations/nomination_page.dart'; // Uncomment and adjust path as needed
+import '../nominations/nomination_page.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({Key? key}) : super(key: key);
-
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  final AuthService _authService = AuthService();
-  final PageController _pageController = PageController();
-  int _currentIndex = 0;
-
-  final List<DashboardTab> _tabs = [
-    DashboardTab(
-      title: 'Dashboard',
-      icon: Icons.dashboard_outlined,
-      activeIcon: Icons.dashboard,
-    ),
-    DashboardTab(
-      title: 'Sakhi',
-      icon: Icons.smart_toy_outlined,
-      activeIcon: Icons.smart_toy,
-    ),
-    DashboardTab(
-      title: 'Events',
-      icon: Icons.event_outlined,
-      activeIcon: Icons.event,
-    ),
-    DashboardTab(
-      title: 'Wall',
-      icon: Icons.forum_outlined,
-      activeIcon: Icons.forum,
-    ),
-    DashboardTab(
-      title: 'Profile',
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
-    ),
-  ];
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: [
-          _buildHomeTab(), // Dashboard content
-          const ChatBotScreen(), // Updated chatbot screen
-          EventsScreen(), // Your actual events screen
-          CampusWallScreen(), // Your actual campus wall screen
-          ProfileScreen(), // Your actual profile screen
-        ],
+      body: SafeArea(
+        child: _HomeTab(
+          onJoinEvent: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EventsScreen()),
+            );
+          },
+          onApplyGDG: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NominationPage()),
+            );
+          },
+        ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: _BottomNavBar(),
     );
   }
+}
 
-  Widget _buildBottomNavigationBar() {
+class _BottomNavBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -91,14 +52,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          // Jump directly to the page without animation
-          _pageController.jumpToPage(index);
-        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.white,
         selectedItemColor: AppColors.primaryBlue,
@@ -106,397 +59,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         elevation: 0,
-        items: _tabs.map((tab) {
-          final isSelected = _tabs.indexOf(tab) == _currentIndex;
-          return BottomNavigationBarItem(
-            icon: Icon(isSelected ? tab.activeIcon : tab.icon),
-            label: tab.title,
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildHomeTab() {
-    return FutureBuilder<UserModel?>(
-      future: _getCurrentUserModel(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final user = snapshot.data;
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(user),
-                const SizedBox(height: 24),
-                _buildQuickActions(),
-                const SizedBox(height: 24),
-                _buildUpcomingEvents(),
-              ],
-            ),
+        onTap: (index) {
+          switch (index) {
+            case 0:
+            // Already on dashboard
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatBotScreen()),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EventsScreen()),
+              );
+              break;
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CampusWallScreen()),
+              );
+              break;
+            case 4:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+              break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
-        );
-      },
-    );
-  }
-
-  // Helper method to get UserModel from Firebase User
-  Future<UserModel?> _getCurrentUserModel() async {
-    try {
-      final firebaseUser = _authService.currentUser;
-      if (firebaseUser == null) return null;
-
-      final userData = await _authService.getUserData();
-      if (userData == null) return null;
-
-      return UserModel.fromMap(userData, firebaseUser.uid);
-    } catch (e) {
-      print('Error loading user data: $e');
-      return null;
-    }
-  }
-
-  Widget _buildHeader(UserModel? user) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.whiteWithOpacity(0.2),
-            backgroundImage: user?.profileImageUrl != null
-                ? NetworkImage(user!.profileImageUrl!)
-                : null,
-            child: user?.profileImageUrl == null
-                ? Text(
-              user?.initials ?? 'U',
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-                : null,
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            activeIcon: Icon(Icons.smart_toy),
+            label: 'Sakhi',
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back,',
-                  style: TextStyle(
-                    color: AppColors.whiteWithOpacity(0.8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.displayName ?? 'Student',
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (user?.branch != null && user?.semester != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '${user!.branch} • ${user.formattedSemester}',
-                    style: TextStyle(
-                      color: AppColors.whiteWithOpacity(0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_outlined),
+            activeIcon: Icon(Icons.event),
+            label: 'Events',
           ),
-          IconButton(
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.white,
-              size: 24,
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.forum_outlined),
+            activeIcon: Icon(Icons.forum),
+            label: 'Wall',
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Actions',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Single action card for Join Event
-        _buildActionCard(
-          'Join Event',
-          'Find and join campus events',
-          Icons.add_circle_outline,
-          AppColors.eventsColor,
-              () {
-            // Navigate to Events tab
-            setState(() {
-              _currentIndex = 2;
-            });
-            _pageController.animateToPage(
-              2,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        // GDG Application card
-        _buildActionCard(
-          'Apply for GDG!',
-          'Nominations are live',
-          Icons.group_add_outlined,
-          AppColors.primaryBlue,
-              () {
-            // Navigate to nomination page
-            // Navigator.push(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => NominationPage()),
-            // );
-
-            // Temporary placeholder - replace with actual navigation
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Navigate to Nomination Page'),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-      String title,
-      String subtitle,
-      IconData icon,
-      Color color,
-      VoidCallback onTap,
-      ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowLight,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: color,
-              size: 32,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: AppColors.mediumGray,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUpcomingEvents() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Upcoming Events',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _currentIndex = 2; // Navigate to Events tab
-                });
-                _pageController.animateToPage(
-                  2,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildEventCard(
-          'Tech Talk: AI in Education',
-          'Tomorrow, 2:00 PM',
-          'Auditorium A',
-          '45 attending',
-        ),
-        const SizedBox(height: 12),
-        _buildEventCard(
-          'Study Group: Database Systems',
-          'Friday, 4:00 PM',
-          'Library Room 201',
-          '12 attending',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventCard(String title, String time, String location, String attending) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppColors.eventsColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.event,
-              color: AppColors.eventsColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      location,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      attending,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.eventsColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),
@@ -504,14 +122,294 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class DashboardTab {
-  final String title;
-  final IconData icon;
-  final IconData activeIcon;
+class _HomeTab extends StatelessWidget {
+  final VoidCallback onJoinEvent;
+  final VoidCallback onApplyGDG;
 
-  DashboardTab({
-    required this.title,
+  const _HomeTab({
+    Key? key,
+    required this.onJoinEvent,
+    required this.onApplyGDG,
+  }) : super(key: key);
+
+  Stream<UserModel?> _getUserData() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return Stream.value(null);
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((doc) {
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        return UserModel(
+          name: data['fullName'] ?? '',
+          course: data['branch'] ?? '',
+          semester: data['semester']?.toString() ?? '',
+        );
+      }
+      return null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<UserModel?>(
+      stream: _getUserData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: Text('User data not found'));
+        }
+
+        final user = snapshot.data!;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Greeting Card
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0] : '?',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Welcome back,",
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 14),
+                          ),
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "${user.course} • Semester ${user.semester}",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.notifications_none, color: Colors.white)
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Quick Actions
+              const Text(
+                "Quick Actions",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _QuickActionCard(
+                icon: Icons.add,
+                iconColor: Colors.purple,
+                title: "Join Event",
+                subtitle: "Find and join campus events",
+                onTap: onJoinEvent,
+              ),
+              _QuickActionCard(
+                icon: Icons.person_add_alt,
+                iconColor: Colors.blue,
+                title: "Apply for GDG!",
+                subtitle: "Nominations are live",
+                onTap: onApplyGDG,
+              ),
+              const SizedBox(height: 24),
+
+              // Upcoming Events
+              const _UpcomingEventsSection(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    Key? key,
     required this.icon,
-    required this.activeIcon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingEventsSection extends StatelessWidget {
+  const _UpcomingEventsSection({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final events = [
+      {
+        "title": "GDG Info Session",
+        "date": "To be announced",
+        "image":
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9j3pR1S7bg44a7JxYmV3zKBiMAU0zVXoVDg&s"
+      },
+      {
+        "title": "Flutter App Development Session",
+        "date": "To be announced",
+        "image":
+        "https://res.cloudinary.com/upwork-cloud/image/upload/c_scale,w_400/v1726010069/catalog/1833644053689158905/k8n5j0m53gjpsrtqmw2u.jpg"
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Upcoming Events",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: events.map((event) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  )
+                ],
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      event["image"]!,
+                      height: 60,
+                      width: 60,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(event["title"]!,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text("Date: ${event["date"]}",
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey[600])),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class UserModel {
+  final String name;
+  final String course;
+  final String semester;
+
+  UserModel({
+    required this.name,
+    required this.course,
+    required this.semester,
   });
 }

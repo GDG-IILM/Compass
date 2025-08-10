@@ -27,12 +27,15 @@ dependencies:
   # Utilities
   url_launcher: ^6.2.2
   cupertino_icons: ^1.0.2
+  cached_network_image: ^3.3.1
 
   #Chatbot_AudioTransmission
   socket_io_client: ^2.0.3+1
   permission_handler: ^11.0.1
+  flutter_sound: ^9.2.13
   audioplayers: ^5.2.1
   path_provider: ^2.1.1
+  http: ^1.1.0
 
 
 
@@ -41,6 +44,7 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 
 flutter:
@@ -51,6 +55,18 @@ flutter:
     - assets/SplashScreen.png
     - assets/pfp/kushal.png
     - assets/pfp/piyush.png
+    - assets/icons/ig.png
+    - assets/icons/github.png
+    - assets/icons/linkedin.png
+    - assets/icons/gdg.png
+    - assets/icons/web.png
+    - assets/icons/building.png
+    - assets/logo/devopify.png
+    - assets/logo/ck.png
+    - assets/logo/loopmind.png
+    - assets/logo/yukt.png
+    - assets/logo/grint.png
+
 
 flutter_launcher_icons:
   android: true

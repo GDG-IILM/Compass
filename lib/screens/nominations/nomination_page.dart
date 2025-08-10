@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../utils/colors.dart'; // Adjust path as needed
 
 class NominationPage extends StatefulWidget {
@@ -67,7 +68,6 @@ class _NominationPageState extends State<NominationPage> {
         padding: const EdgeInsets.only(left: 16),
         child: IconButton(
           onPressed: () {
-            // Navigate back to dashboard
             Navigator.pop(context);
           },
           icon: Container(
@@ -232,7 +232,8 @@ class _NominationPageState extends State<NominationPage> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter your email address';
                 }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value)) {
                   return 'Please enter a valid email address';
                 }
                 return null;
@@ -255,11 +256,13 @@ class _NominationPageState extends State<NominationPage> {
               controller: _instagramController,
               label: 'Instagram Profile',
               hint: 'https://instagram.com/username',
-              icon: Icons.camera_alt_outlined, // Using camera as Instagram icon alternative
-              customIcon: _buildInstagramIcon(), // Custom Instagram icon
+              icon: Icons.camera_alt_outlined,
+              customIcon: _buildInstagramIcon(),
               keyboardType: TextInputType.url,
               validator: (value) {
-                if (value != null && value.isNotEmpty && !value.contains('instagram.com')) {
+                if (value != null &&
+                    value.isNotEmpty &&
+                    !value.contains('instagram.com')) {
                   return 'Please enter a valid Instagram URL';
                 }
                 return null;
@@ -273,10 +276,12 @@ class _NominationPageState extends State<NominationPage> {
               label: 'GitHub Profile',
               hint: 'https://github.com/username',
               icon: Icons.code_outlined,
-              customIcon: _buildGithubIcon(), // Custom GitHub icon
+              customIcon: _buildGithubIcon(),
               keyboardType: TextInputType.url,
               validator: (value) {
-                if (value != null && value.isNotEmpty && !value.contains('github.com')) {
+                if (value != null &&
+                    value.isNotEmpty &&
+                    !value.contains('github.com')) {
                   return 'Please enter a valid GitHub URL';
                 }
                 return null;
@@ -354,11 +359,12 @@ class _NominationPageState extends State<NominationPage> {
                 color: AppColors.textTertiary,
                 fontSize: 16,
               ),
-              prefixIcon: customIcon ?? Icon(
-                icon,
-                color: AppColors.primaryBlue,
-                size: 22,
-              ),
+              prefixIcon: customIcon ??
+                  Icon(
+                    icon,
+                    color: AppColors.primaryBlue,
+                    size: 22,
+                  ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -463,18 +469,16 @@ class _NominationPageState extends State<NominationPage> {
           height: 24,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+            valueColor:
+            AlwaysStoppedAnimation<Color>(AppColors.white),
           ),
         )
             : Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.send_outlined,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            const Text(
+          children: const [
+            Icon(Icons.send_outlined, size: 20),
+            SizedBox(width: 8),
+            Text(
               'Submit Nomination',
               style: TextStyle(
                 fontSize: 18,
@@ -487,69 +491,100 @@ class _NominationPageState extends State<NominationPage> {
     );
   }
 
-  void _handleSubmit() async {
+  Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSubmitting = true;
       });
 
-      // Add haptic feedback
       HapticFeedback.lightImpact();
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        String safeEmail =
+        _emailController.text.trim().replaceAll('.', '_');
 
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: AppColors.white,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Nomination submitted successfully!',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.w600,
+        await FirebaseFirestore.instance
+            .collection('nomination')
+            .doc(safeEmail)
+            .set({
+          'name': _nameController.text.trim(),
+          'course': _courseController.text.trim(),
+          'gender': _selectedGender,
+          'email': _emailController.text.trim(),
+          'instagram': _instagramController.text.trim(),
+          'github': _githubController.text.trim(),
+          'domain': _selectedDomain,
+          'timestamp': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: const [
+                  Icon(Icons.check_circle, color: AppColors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Nomination submitted successfully!',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+              backgroundColor: AppColors.successGreen,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            backgroundColor: AppColors.successGreen,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+          );
 
-        // Navigate back after success
-        Navigator.pop(context);
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: const [
+                  Icon(Icons.error, color: AppColors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Error submitting nomination. Try again!',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.errorRed,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
       }
 
       setState(() {
         _isSubmitting = false;
       });
 
-      // Print form data (replace with actual API call)
       _printFormData();
     } else {
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
-            children: [
-              const Icon(
-                Icons.error,
-                color: AppColors.white,
-              ),
-              const SizedBox(width: 8),
-              const Text(
+            children: const [
+              Icon(Icons.error, color: AppColors.white),
+              SizedBox(width: 8),
+              Text(
                 'Please fill all required fields correctly',
                 style: TextStyle(
                   color: AppColors.white,
@@ -581,7 +616,6 @@ class _NominationPageState extends State<NominationPage> {
     print('================================');
   }
 
-  // Custom Instagram Icon
   Widget _buildInstagramIcon() {
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -610,7 +644,6 @@ class _NominationPageState extends State<NominationPage> {
     );
   }
 
-  // Custom GitHub Icon
   Widget _buildGithubIcon() {
     return Padding(
       padding: const EdgeInsets.all(12),

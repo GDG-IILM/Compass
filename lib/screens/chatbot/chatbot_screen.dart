@@ -7,6 +7,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:flutter/services.dart';
 
 class ChatBotScreen extends StatefulWidget {
@@ -18,25 +19,23 @@ class ChatBotScreen extends StatefulWidget {
 
 class _ChatBotScreenState extends State<ChatBotScreen>
     with TickerProviderStateMixin {
-  // Controllers and State
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
 
-  // Socket connection
   late IO.Socket socket;
   bool _isConnected = false;
 
-  // Voice recording with native platform channels
-  static const platform = MethodChannel('voice_recorder');
+  FlutterSoundRecorder? _recorder;
+  FlutterSoundPlayer? _player;
   bool _isRecording = false;
   bool _isProcessing = false;
+  bool _isRecorderInitialized = false;
   String _statusMessage = 'Ready to chat';
+  DateTime? _recordingStartTime;
 
-  // Audio playback
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Animations
   late AnimationController _pulseController;
   late AnimationController _waveController;
   late Animation<double> _pulseAnimation;
@@ -47,6 +46,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     super.initState();
     _initializeAnimations();
     _initializeSocket();
+    _initializeRecorder();
     _requestPermissions();
   }
 
@@ -74,20 +74,37 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     ).animate(_waveController);
   }
 
+  Future<void> _initializeRecorder() async {
+    try {
+      _recorder = FlutterSoundRecorder();
+      _player = FlutterSoundPlayer();
+      await _recorder!.openRecorder();
+      await _player!.openPlayer();
+
+      setState(() {
+        _isRecorderInitialized = true;
+        _statusMessage = 'Voice recorder initialized';
+      });
+    } catch (e) {
+      setState(() {
+        _isRecorderInitialized = false;
+        _statusMessage = 'Voice recorder initialization failed';
+      });
+    }
+  }
+
   void _initializeSocket() {
     socket = IO.io('https://compass-sarvam-chatbot.onrender.com/',
         IO.OptionBuilder()
             .setTransports(['websocket'])
             .enableAutoConnect()
-            .build()
-    );
+            .build());
 
     socket.onConnect((_) {
       setState(() {
         _isConnected = true;
         _statusMessage = 'Connected to voice bot';
       });
-      print('🔗 Connected to voice bot');
     });
 
     socket.onDisconnect((_) {
@@ -95,7 +112,6 @@ class _ChatBotScreenState extends State<ChatBotScreen>
         _isConnected = false;
         _statusMessage = 'Disconnected from voice bot';
       });
-      print('❌ Disconnected from voice bot');
     });
 
     socket.on('status_update', (data) {
@@ -107,7 +123,6 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     socket.on('transcription_received', (data) {
       final transcription = data['transcription'] ?? '';
       final language = data['language'] ?? 'en-IN';
-
       if (transcription.isNotEmpty) {
         _addMessage(ChatMessage(
           text: transcription,
@@ -121,7 +136,6 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     socket.on('bot_response', (data) {
       final response = data['response'] ?? '';
       final language = data['language'] ?? 'en-IN';
-
       if (response.isNotEmpty) {
         _addMessage(ChatMessage(
           text: response,
@@ -152,7 +166,11 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   }
 
   Future<void> _requestPermissions() async {
-    await Permission.microphone.request();
+    final microphoneStatus = await Permission.microphone.request();
+    final storageStatus = await Permission.storage.request();
+    if (!microphoneStatus.isGranted) {
+      _showErrorSnackBar('Microphone permission is required for voice input');
+    }
   }
 
   void _addMessage(ChatMessage message) {
@@ -193,141 +211,111 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     socket.emit('text_message', {'text': text});
   }
 
-  // Simplified recording using a basic web-based approach for demo
   Future<void> _startRecording() async {
-    try {
-      final status = await Permission.microphone.status;
-      if (!status.isGranted) {
-        final result = await Permission.microphone.request();
-        if (!result.isGranted) {
-          _showErrorSnackBar('Microphone permission denied');
-          return;
-        }
-      }
-
-      setState(() {
-        _isRecording = true;
-        _statusMessage = 'Listening... Speak now (Demo mode - text only)';
-      });
-
-      _pulseController.repeat(reverse: true);
-      _waveController.repeat();
-
-      // For demo purposes, we'll show a dialog to enter text
-      _showVoiceInputDialog();
-
-    } catch (e) {
-      _showErrorSnackBar('Recording not available in demo mode');
-      setState(() {
-        _isRecording = false;
-      });
+    if (!_isRecorderInitialized) {
+      _showErrorSnackBar('Voice recorder not initialized');
+      return;
     }
-  }
 
-  Future<void> _stopRecording() async {
+    final status = await Permission.microphone.status;
+    if (!status.isGranted) {
+      final result = await Permission.microphone.request();
+      if (!result.isGranted) {
+        _showErrorSnackBar('Microphone permission denied');
+        return;
+      }
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    String tempPath = '${tempDir.path}/recording_$timestamp.aac';
+
     setState(() {
-      _isRecording = false;
-      _statusMessage = 'Ready to chat';
+      _isRecording = true;
+      _statusMessage = 'Listening... Speak now';
+      _recordingStartTime = DateTime.now();
     });
 
-    _pulseController.stop();
-    _waveController.stop();
-  }
+    _pulseController.repeat(reverse: true);
+    _waveController.repeat();
 
-  void _showVoiceInputDialog() {
-    final voiceController = TextEditingController();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Voice Input (Demo Mode)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter text to simulate voice input:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: voiceController,
-              decoration: const InputDecoration(
-                hintText: 'Type what you would say...',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _stopRecording();
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = voiceController.text.trim();
-              Navigator.pop(context);
-              _stopRecording();
-
-              if (text.isNotEmpty) {
-                _simulateVoiceInput(text);
-              }
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
+    await _recorder!.startRecorder(
+      toFile: tempPath,
+      codec: Codec.aacADTS,
+      sampleRate: 16000,
+      numChannels: 1,
+      audioSource: AudioSource.microphone,
     );
   }
 
-  void _simulateVoiceInput(String text) {
-    // Add user message
-    _addMessage(ChatMessage(
-      text: text,
-      isUser: true,
-      timestamp: DateTime.now(),
-    ));
+  Future<void> _stopRecording() async {
+    if (!_isRecording || _recorder == null) return;
 
     setState(() {
+      _isRecording = false;
       _isProcessing = true;
       _statusMessage = 'Processing your speech...';
     });
 
-    // Send as voice message to server (it will process the same way)
-    socket.emit('text_message', {'text': text});
+    _pulseController.stop();
+    _waveController.stop();
+
+    final recordingPath = await _recorder!.stopRecorder();
+    if (recordingPath != null) {
+      await _sendAudioToServer(recordingPath);
+    }
+  }
+
+  Future<void> _sendAudioToServer(String audioPath) async {
+    try {
+      final audioFile = File(audioPath);
+      if (!await audioFile.exists()) {
+        throw Exception('Audio file does not exist');
+      }
+
+      final audioBytes = await audioFile.readAsBytes();
+      if (audioBytes.isEmpty) {
+        _showErrorSnackBar('Empty audio file');
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      final audioBase64 = base64Encode(audioBytes);
+
+      // ✅ Changed: Send ONLY base64 string, no dictionary
+      socket.emit('audio_stream', audioBase64);
+
+      Future.delayed(const Duration(seconds: 2), () async {
+        if (await audioFile.exists()) {
+          await audioFile.delete();
+        }
+      });
+    } catch (e) {
+      _showErrorSnackBar('Failed to send audio: $e');
+      setState(() => _isProcessing = false);
+    }
   }
 
   Future<void> _playAudioResponse(dynamic audioData) async {
     try {
       Uint8List audioBytes;
-
       if (audioData is String) {
-        // Base64 encoded audio
         audioBytes = base64Decode(audioData);
       } else if (audioData is List<int>) {
-        // Raw bytes
         audioBytes = Uint8List.fromList(audioData);
       } else {
         throw Exception('Unsupported audio data format');
       }
 
-      // Create temporary file for playback
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/response_${DateTime.now().millisecondsSinceEpoch}.wav');
       await tempFile.writeAsBytes(audioBytes);
 
-      // Play audio from file
       await _audioPlayer.play(DeviceFileSource(tempFile.path));
-
-      // Clean up after playback
       _audioPlayer.onPlayerComplete.listen((_) {
-        tempFile.delete().catchError((e) => print('Error deleting temp file: $e'));
+        tempFile.delete().catchError((_) {});
       });
-
     } catch (e) {
-      print('Error playing audio: $e');
       _showErrorSnackBar('Failed to play audio response');
     }
   }
@@ -337,7 +325,6 @@ class _ChatBotScreenState extends State<ChatBotScreen>
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -360,21 +347,18 @@ class _ChatBotScreenState extends State<ChatBotScreen>
                       ? [Colors.red.shade400, Colors.red.shade600]
                       : _isProcessing
                       ? [Colors.orange.shade400, Colors.orange.shade600]
+                      : !_isRecorderInitialized
+                      ? [Colors.grey.shade400, Colors.grey.shade600]
                       : [Colors.blue.shade400, Colors.blue.shade600],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isRecording ? Colors.red : Colors.blue).withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
               child: Icon(
                 _isRecording
                     ? Icons.stop
                     : _isProcessing
                     ? Icons.hourglass_empty
+                    : !_isRecorderInitialized
+                    ? Icons.mic_off
                     : Icons.mic,
                 color: Colors.white,
                 size: 32,
@@ -383,35 +367,6 @@ class _ChatBotScreenState extends State<ChatBotScreen>
           );
         },
       ),
-    );
-  }
-
-  Widget _buildWaveform() {
-    if (!_isRecording) return const SizedBox();
-
-    return AnimatedBuilder(
-      animation: _waveAnimation,
-      builder: (context, child) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (index) {
-            final animationDelay = index * 0.2;
-            final waveHeight = 20.0 *
-                (1.0 + 0.5 *
-                    ((_waveAnimation.value + animationDelay) % 1.0).clamp(0.0, 1.0));
-
-            return Container(
-              width: 4,
-              height: waveHeight,
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade400,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            );
-          }),
-        );
-      },
     );
   }
 
@@ -449,64 +404,12 @@ class _ChatBotScreenState extends State<ChatBotScreen>
       ),
       body: Column(
         children: [
-          // Status Bar
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             color: Colors.blue.shade50,
-            child: Row(
-              children: [
-                Icon(
-                  _isProcessing
-                      ? Icons.hourglass_empty
-                      : _isRecording
-                      ? Icons.mic
-                      : Icons.chat_bubble_outline,
-                  size: 16,
-                  color: Colors.blue.shade600,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _statusMessage,
-                    style: TextStyle(
-                      color: Colors.blue.shade600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                if (_isRecording) _buildWaveform(),
-              ],
-            ),
+            child: Text(_statusMessage),
           ),
-
-          // Demo Notice
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            color: Colors.amber.shade50,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Colors.amber.shade700,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Demo Mode: Voice button opens text dialog. Text chat works normally.',
-                    style: TextStyle(
-                      color: Colors.amber.shade700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Chat Messages
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -518,37 +421,13 @@ class _ChatBotScreenState extends State<ChatBotScreen>
               },
             ),
           ),
-
-          // Voice Input Area
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
+            color: Colors.white,
             child: Column(
               children: [
-                // Voice Button
                 _buildVoiceButton(),
-                const SizedBox(height: 12),
-                Text(
-                  _isRecording
-                      ? 'Recording in demo mode...'
-                      : 'Tap to simulate voice input',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
                 const SizedBox(height: 16),
-
-                // Text Input
                 Row(
                   children: [
                     Expanded(
@@ -562,25 +441,18 @@ class _ChatBotScreenState extends State<ChatBotScreen>
                           ),
                           filled: true,
                           fillColor: Colors.grey.shade100,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
                         ),
                         onSubmitted: (_) => _sendTextMessage(),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade600,
-                        shape: BoxShape.circle,
-                      ),
+                    CircleAvatar(
+                      backgroundColor: Colors.blue.shade600,
                       child: IconButton(
-                        onPressed: _isConnected ? _sendTextMessage : null,
                         icon: const Icon(Icons.send, color: Colors.white),
+                        onPressed: _isConnected ? _sendTextMessage : null,
                       ),
-                    ),
+                    )
                   ],
                 ),
               ],
@@ -598,6 +470,8 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     _audioPlayer.dispose();
     _pulseController.dispose();
     _waveController.dispose();
+    _recorder?.closeRecorder();
+    _player?.closePlayer();
     socket.disconnect();
     socket.dispose();
     super.dispose();
@@ -620,105 +494,25 @@ class ChatMessage {
 
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
-
   const ChatBubble({Key? key, required this.message}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
-        message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            CircleAvatar(
-              backgroundColor: Colors.blue.shade600,
-              radius: 16,
-              child: const Icon(Icons.smart_toy, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: message.isUser
-                    ? Colors.blue.shade600
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    blurRadius: 5,
-                    offset: const Offset(2, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color: message.isUser ? Colors.white : Colors.black87,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          color: message.isUser
-                              ? Colors.white70
-                              : Colors.grey.shade500,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (message.language != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: message.isUser
-                                ? Colors.white.withOpacity(0.2)
-                                : Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            message.language!.split('-')[0].toUpperCase(),
-                            style: TextStyle(
-                              color: message.isUser
-                                  ? Colors.white
-                                  : Colors.blue.shade600,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
+    return Align(
+      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: message.isUser ? Colors.blue.shade600 : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            color: message.isUser ? Colors.white : Colors.black,
           ),
-          if (message.isUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: Colors.grey.shade400,
-              radius: 16,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
