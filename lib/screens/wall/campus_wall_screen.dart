@@ -29,8 +29,8 @@ class CampusWallScreen extends StatelessWidget {
       "Dev-opify crafts tailored, scalable software—websites, mobile apps, custom tools, and digital strategy solutions—powered by expert design and 24/7 support.",
       founders: "Piyush Pattanayk (Founder) Bibhu Krupa (Co-Founder)",
       logoPath: "assets/logo/devopify.png",
-      websiteUrl: "https://devopify.com",
-      instagramUrl: "https://instagram.com/devopify",
+      websiteUrl: "https://dev-opify.netlify.app/",
+      instagramUrl: "https://www.instagram.com/dev_opify/",
       linkedinUrl: "https://linkedin.com/company/devopify",
     ),
     Startup(
